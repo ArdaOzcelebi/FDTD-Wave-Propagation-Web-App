@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FDTD Wave Simulator — Interactive 3D Electromagnetic Field Visualizer</title>
+  <meta name="description" content="An immersive, real-time 3D simulation of electromagnetic wave propagation using the Finite-Difference Time-Domain (FDTD) method. Explore Maxwell's equations, Yee cell geometry, and the leapfrog algorithm interactively." />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@700;800;900&display=swap" rel="stylesheet" />
+
+  <!-- MathJax for LaTeX rendering -->
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['$','$'], ['\\(','\\)']], displayMath: [['$$','$$'], ['\\[','\\]']] },
+      options: { skipHtmlTags: ['script','noscript','style','textarea','pre'] },
+      startup: { typeset: false }
+    };
+  </script>
+  <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script"></script>
+
+  <!-- Three.js import map -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.163.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     NAVIGATION
+═══════════════════════════════════════════════════════════════════════════ -->
+<nav id="navbar" role="navigation" aria-label="Main navigation">
+  <div class="nav-inner">
+    <a href="#hero" class="nav-logo" aria-label="FDTD Home">
+      <span class="logo-icon">⚡</span>
+      <span class="logo-text">FDTD<span class="logo-accent">·SIM</span></span>
+    </a>
+    <ul class="nav-links" role="list">
+      <li><a href="#hero"        class="nav-link active">Home</a></li>
+      <li><a href="#theory"      class="nav-link">Theory</a></li>
+      <li><a href="#simulator"   class="nav-link">Simulator</a></li>
+      <li><a href="#analysis"    class="nav-link">Analysis</a></li>
+      <li><a href="#experiments" class="nav-link">Experiments</a></li>
+      <li><a href="#algorithm"   class="nav-link">Algorithm</a></li>
+      <li><a href="#about"       class="nav-link">About</a></li>
+    </ul>
+    <button class="nav-cta" onclick="document.getElementById('simulator').scrollIntoView({behavior:'smooth'})">
+      Launch Sim ↗
+    </button>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     HERO
+═══════════════════════════════════════════════════════════════════════════ -->
+<section id="hero" aria-label="Hero">
+  <div id="hero-bg"></div><!-- Three.js hero animation mounts here -->
+
+  <div class="hero-content">
+    <div class="hero-badge">
+      <span class="badge-dot"></span>
+      Live 3D Simulation
+    </div>
+    <h1 class="hero-title">
+      Watch Maxwell's<br/>
+      <span class="title-gradient">Equations Come Alive</span>
+    </h1>
+    <p class="hero-sub">
+      An interactive 3D Finite-Difference Time-Domain (FDTD) simulator — explore
+      how electromagnetic waves propagate through materials, diffract through apertures,
+      and resonate inside cavities, <em>nanosecond by nanosecond</em>.
+    </p>
+    <div class="hero-actions">
+      <button class="btn-primary" onclick="document.getElementById('simulator').scrollIntoView({behavior:'smooth'})">
+        Open 3D Simulator →
+      </button>
+      <button class="btn-ghost" onclick="document.getElementById('theory').scrollIntoView({behavior:'smooth'})">
+        Learn the Physics
+      </button>
+    </div>
+    <div class="hero-stats">
+      <div class="stat"><span class="stat-val">3D</span><span class="stat-label">Yee Grid</span></div>
+      <div class="stat-divider"></div>
+      <div class="stat"><span class="stat-val">6</span><span class="stat-label">Field Components</span></div>
+      <div class="stat-divider"></div>
+      <div class="stat"><span class="stat-val">Real-time</span><span class="stat-label">WebWorker Engine</span></div>
+    </div>
+  </div>
+
+  <div class="hero-scroll-hint" aria-hidden="true">
+    <span>Scroll to explore</span>
+    <div class="scroll-arrow"></div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     THEORY
+═══════════════════════════════════════════════════════════════════════════ -->
+<section id="theory" aria-labelledby="theory-heading">
+  <div class="section-header">
+    <div class="section-tag">Physics Foundation</div>
+    <h2 id="theory-heading">How FDTD Works</h2>
+    <p class="section-sub">Four pillars behind the algorithm — from raw Maxwell to a computable algorithm.</p>
+  </div>
+
+  <div class="theory-grid">
+
+    <!-- Card 1: Maxwell -->
+    <div class="theory-card" id="card-maxwell">
+      <div class="card-number">01</div>
+      <div class="card-icon">∇×</div>
+      <h3>Maxwell's Curl Equations</h3>
+      <p class="card-intro">FDTD attacks the raw, time-dependent curl equations directly — no Green's functions, no integral transforms.</p>
+      <div class="math-block">
+        $$\nabla \times \mathbf{E} = -\mu_0 \frac{\partial \mathbf{H}}{\partial t}$$
+        $$\nabla \times \mathbf{H} = \epsilon \frac{\partial \mathbf{E}}{\partial t} + \sigma \mathbf{E}$$
+      </div>
+      <p class="card-body">The beauty is the <strong>symmetry</strong>: a changing <strong>H</strong> field creates a spatial curl in <strong>E</strong>, and vice versa. FDTD exploits this looping relationship to simulate waves forward in time.</p>
+    </div>
+
+    <!-- Card 2: Yee Cell -->
+    <div class="theory-card wide" id="card-yee">
+      <div class="card-number">02</div>
+      <div class="card-icon">⬡</div>
+      <h3>The Yee Cell (1966)</h3>
+      <p class="card-intro">Kane Yee's genius: stagger <strong>E</strong> on cube edges and <strong>H</strong> on cube faces — offset by half a spatial step. This perfectly mirrors the curl operator.</p>
+      <div class="yee-layout">
+        <div id="yee-cell-canvas" aria-label="Interactive 3D Yee cell diagram — drag to rotate"></div>
+        <div class="yee-legend">
+          <div class="legend-section">
+            <div class="legend-title">E field — on edges</div>
+            <div class="legend-item e-field"><span class="legend-dot cyan"></span><strong>Ex</strong> — x-edges</div>
+            <div class="legend-item e-field"><span class="legend-dot cyan"></span><strong>Ey</strong> — y-edges</div>
+            <div class="legend-item e-field"><span class="legend-dot cyan"></span><strong>Ez</strong> — z-edges</div>
+          </div>
+          <div class="legend-section">
+            <div class="legend-title">H field — on faces</div>
+            <div class="legend-item h-field"><span class="legend-dot magenta"></span><strong>Hx</strong> — YZ faces</div>
+            <div class="legend-item h-field"><span class="legend-dot magenta"></span><strong>Hy</strong> — XZ faces</div>
+            <div class="legend-item h-field"><span class="legend-dot magenta"></span><strong>Hz</strong> — XY faces</div>
+          </div>
+          <p class="yee-note">Drag the diagram to orbit. The staggered placement means the curl of <strong>E</strong> is computed using four surrounding <strong>E</strong> values — a simple algebraic difference, no integrals required.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 3: Leapfrog -->
+    <div class="theory-card" id="card-leapfrog">
+      <div class="card-number">03</div>
+      <div class="card-icon">⏱</div>
+      <h3>Leapfrog Integration</h3>
+      <p class="card-intro">Fields are also staggered <em>in time</em> by half a step Δt/2, creating the leapfrog algorithm.</p>
+      <div class="leapfrog-diagram">
+        <div class="lf-timeline">
+          <div class="lf-axis"></div>
+          <div class="lf-label h" style="left:10%">H<sup>n-½</sup></div>
+          <div class="lf-label e" style="left:35%">E<sup>n</sup></div>
+          <div class="lf-label h" style="left:60%">H<sup>n+½</sup></div>
+          <div class="lf-label e" style="left:85%">E<sup>n+1</sup></div>
+          <div class="lf-dot h" style="left:10%"></div>
+          <div class="lf-dot e" style="left:35%"></div>
+          <div class="lf-dot h" style="left:60%"></div>
+          <div class="lf-dot e" style="left:85%"></div>
+          <div class="lf-arrow" style="left:10%;width:25%"></div>
+          <div class="lf-arrow" style="left:35%;width:25%"></div>
+          <div class="lf-arrow" style="left:60%;width:25%"></div>
+        </div>
+        <div class="lf-steps">
+          <div class="lf-step"><span class="step-badge h">H</span>Use <strong>E<sup>n</sup></strong> → advance <strong>H</strong> by ½Δt</div>
+          <div class="lf-step"><span class="step-badge e">E</span>Use <strong>H<sup>n+½</sup></strong> → advance <strong>E</strong> by ½Δt</div>
+          <div class="lf-step"><span class="step-badge loop">∞</span>Repeat — the wave self-propagates!</div>
+        </div>
+      </div>
+      <div class="math-block compact">
+        $$H^{n+\frac{1}{2}} = H^{n-\frac{1}{2}} - \frac{\Delta t}{\mu_0} \nabla \times E^n$$
+        $$E^{n+1} = C_a E^n + C_b \nabla \times H^{n+\frac{1}{2}}$$
+      </div>
+    </div>
+
+    <!-- Card 4: Pros/Cons -->
+    <div class="theory-card" id="card-tradeoffs">
+      <div class="card-number">04</div>
+      <div class="card-icon">⚖</div>
+      <h3>Strengths &amp; Limitations</h3>
+      <p class="card-intro">No method is perfect — knowing the trade-offs is part of engineering judgment.</p>
+      <div class="tradeoffs">
+        <div class="tradeoff-section pros">
+          <div class="tradeoff-label">✓ Strengths</div>
+          <ul>
+            <li><strong>Broadband in one shot</strong> — inject a Gaussian pulse, take a Fourier transform, get the full spectrum.</li>
+            <li><strong>Arbitrary materials</strong> — assign different ε and μ to every single cell (biological tissues, composites, metamaterials).</li>
+            <li><strong>Intuitive</strong> — you literally watch the wave propagate in time.</li>
+            <li><strong>Explicit</strong> — no matrix inversions, scales to massive grids.</li>
+          </ul>
+        </div>
+        <div class="tradeoff-section cons">
+          <div class="tradeoff-label">✗ Limitations</div>
+          <ul>
+            <li><strong>Staircasing</strong> — curved surfaces are approximated by jagged staircase steps on the cubic grid.</li>
+            <li><strong>Dispersion</strong> — waves traveling diagonally through the grid travel at a slightly different speed (numerical artifact).</li>
+            <li><strong>Courant limit</strong> — time step is constrained: $\Delta t \leq \frac{\Delta x}{c\sqrt{3}}$.</li>
+            <li><strong>Memory</strong> — 3D grids with fine resolution consume vast RAM.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- .theory-grid -->
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SIMULATOR
+═══════════════════════════════════════════════════════════════════════════ -->
+<section id="simulator" aria-labelledby="sim-heading">
+  <div class="sim-header-bar">
+    <h2 id="sim-heading">3D FDTD Simulator</h2>
+    <div class="sim-status">
+      <span id="time-display" class="mono">t = 0.00 ns</span>
+      <span id="step-display" class="mono">Step: 0</span>
+      <span id="courant-display" class="mono">S = —</span>
+    </div>
+  </div>
+
+  <div class="sim-layout">
+
+    <!-- LEFT: Controls -->
+    <aside class="sim-controls" aria-label="Simulation controls">
+
+      <!-- Playback -->
+      <div class="ctrl-group">
+        <div class="ctrl-group-title">Playback</div>
+        <div class="ctrl-row playback-row">
+          <button id="btn-play"  class="ctrl-btn primary" aria-label="Play simulation">▶ Play</button>
+          <button id="btn-step"  class="ctrl-btn"         aria-label="Single step">⏭ Step</button>
+          <button id="btn-reset" class="ctrl-btn danger"  aria-label="Reset simulation">↺ Reset</button>
+        </div>
+        <label class="ctrl-label">Steps/frame
+          <select id="steps-per-frame" class="ctrl-select">
+            <option value="1">1 (accurate)</option>
+            <option value="2">2</option>
+            <option value="3" selected>3</option>
+            <option value="5">5 (fast)</option>
+            <option value="8">8 (turbo)</option>
+          </select>
+        </label>
+      </div>
+
+      <!-- Grid -->
+      <div class="ctrl-group">
+        <div class="ctrl-group-title">Grid Resolution</div>
+        <label class="ctrl-label">Size
+          <select id="grid-size" class="ctrl-select">
+            <option value="small"  selected>60³ (fast)</option>
+            <option value="medium">80³ (balanced)</option>
+            <option value="large"> 100³ (detailed)</option>
+          </select>
+        </label>
+        <p class="ctrl-hint">Changing grid size restarts the simulation.</p>
+      </div>
+
+      <!-- Source -->
+      <div class="ctrl-group">
+        <div class="ctrl-group-title">Source</div>
+        <label class="ctrl-label">Type
+          <select id="source-type" class="ctrl-select">
+            <option value="point" selected>Point dipole</option>
+            <option value="plane">Plane wave</option>
+            <option value="dipole">Line dipole</option>
+          </select>
+        </label>
+        <label class="ctrl-label">Waveform
+          <select id="source-waveform" class="ctrl-select">
+            <option value="ricker"            selected>Ricker wavelet (broadband)</option>
+            <option value="sinusoidal">       Sinusoidal (CW)</option>
+            <option value="gaussian">         Gaussian pulse</option>
+            <option value="modulated_gaussian">Modulated Gaussian</option>
+          </select>
+        </label>
+        <label class="ctrl-label">Frequency scale
+          <input type="range" id="source-freq" min="0.5" max="2.0" step="0.05" value="1.0" class="ctrl-slider" />
+          <span id="source-freq-val" class="slider-val">1.0×</span>
+        </label>
+        <label class="ctrl-label">Amplitude
+          <input type="range" id="source-amplitude" min="0.1" max="3.0" step="0.1" value="1.0" class="ctrl-slider" />
+          <span id="source-amp-val" class="slider-val">1.0</span>
+        </label>
+        <button id="btn-apply-source" class="ctrl-btn full">Apply Source</button>
+      </div>
+
+      <!-- Materials -->
+      <div class="ctrl-group">
+        <div class="ctrl-group-title">Material Presets</div>
+        <div class="material-grid">
+          <button class="mat-btn" data-material="free_space"     title="Reset to vacuum">🌌 Vacuum</button>
+          <button class="mat-btn" data-material="dielectric_slab" title="Dielectric slab εᵣ=4">🔷 Dielectric</button>
+          <button class="mat-btn" data-material="double_slit"    title="Double-slit wall">〰 Double Slit</button>
+          <button class="mat-btn" data-material="pec_plate"      title="PEC reflector plate">🔵 PEC Plate</button>
+          <button class="mat-btn" data-material="waveguide"      title="Rectangular waveguide">📡 Waveguide</button>
+          <button class="mat-btn" data-material="cavity"         title="Resonant cavity">📦 Cavity</button>
+        </div>
+      </div>
+
+      <!-- Slice positions -->
+      <div class="ctrl-group">
+        <div class="ctrl-group-title">Slice Planes</div>
+        <label class="ctrl-label">X slice (YZ plane)
+          <input type="range" id="slice-x" min="0" max="59" value="30" class="ctrl-slider" />
+        </label>
+        <label class="ctrl-label">Y slice (XZ plane)
+          <input type="range" id="slice-y" min="0" max="59" value="30" class="ctrl-slider" />
+        </label>
+        <label class="ctrl-label">Z slice (XY plane)
+          <input type="range" id="slice-z" min="0" max="59" value="30" class="ctrl-slider" />
+        </label>
+      </div>
+
+    </aside><!-- .sim-controls -->
+
+    <!-- CENTER: 3D Viewport -->
+    <div id="sim-viewport" aria-label="3D simulation viewport — drag to orbit, scroll to zoom">
+      <div id="sim-canvas-container"></div>
+      <div class="viewport-overlay">
+        <div class="axis-label x-label">X</div>
+        <div class="axis-label y-label">Y</div>
+        <div class="axis-label z-label">Z</div>
+      </div>
+      <div class="viewport-hints">
+        <span>🖱 Drag: orbit</span>
+        <span>⚙ Scroll: zoom</span>
+        <span>Right-drag: pan</span>
+      </div>
+      <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <p>Initializing FDTD Engine…</p>
+      </div>
+    </div>
+
+    <!-- RIGHT: Metrics -->
+    <aside class="sim-metrics" aria-label="Simulation metrics">
+
+      <div class="metric-group">
+        <div class="metric-title">Field Colormap</div>
+        <div class="colorbar">
+          <div class="colorbar-gradient"></div>
+          <div class="colorbar-labels">
+            <span class="magenta-text">−max</span>
+            <span>0</span>
+            <span class="cyan-text">+max</span>
+          </div>
+          <div class="colorbar-caption">Ez field amplitude</div>
+        </div>
+      </div>
+
+      <div class="metric-group">
+        <div class="metric-title">Probe Signal <span class="probe-hint">(at slice intersection)</span></div>
+        <canvas id="probe-canvas" width="220" height="80" aria-label="Time-domain probe signal"></canvas>
+      </div>
+
+      <div class="metric-group">
+        <div class="metric-title">Simulation Info</div>
+        <div class="info-table">
+          <div class="info-row"><span>Grid</span><span id="info-grid" class="mono">60³</span></div>
+          <div class="info-row"><span>dx</span><span id="info-dx"   class="mono">3.00 mm</span></div>
+          <div class="info-row"><span>dt</span><span id="info-dt"   class="mono">— ps</span></div>
+          <div class="info-row"><span>Courant</span><span id="courant-number" class="mono">—</span></div>
+          <div class="info-row"><span>Max |E|</span><span id="info-maxe" class="mono">—</span></div>
+        </div>
+      </div>
+
+      <div class="metric-group">
+        <div class="metric-title">Display Options</div>
+        <label class="toggle-label">
+          <input type="checkbox" id="tog-xy" checked />XY Plane (z-slice)
+        </label>
+        <label class="toggle-label">
+          <input type="checkbox" id="tog-xz" checked />XZ Plane (y-slice)
+        </label>
+        <label class="toggle-label">
+          <input type="checkbox" id="tog-yz" checked />YZ Plane (x-slice)
+        </label>
+        <label class="toggle-label">
+          <input type="checkbox" id="tog-box" checked />Bounding Box
+        </label>
+        <label class="toggle-label">
+          <input type="checkbox" id="tog-axes" checked />Axes
+        </label>
+      </div>
+
+    </aside><!-- .sim-metrics -->
+  </div><!-- .sim-layout -->
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     FREQUENCY ANALYSIS
+═══════════════════════════════════════════════════════════════════════════ -->
+<section id="analysis" aria-labelledby="analysis-heading">
+  <div class="section-header">
+    <div class="section-tag">Broadband Power</div>
+    <h2 id="analysis-heading">Frequency Domain Analysis</h2>
+    <p class="section-sub">
+      A single Ricker-wavelet simulation yields the full frequency response. Hit Run, then click
+      <strong>Compute Spectrum</strong> to see FDTD's broadband superpower in action.
+    </p>
+  </div>
+
+  <div class="analysis-grid">
+    <div class="analysis-card">
+      <div class="analysis-card-header">
+        <h3>Time Domain — Ez at Probe</h3>
+        <span class="chart-badge">Live</span>
+      </div>
+      <canvas id="td-canvas" width="500" height="160" aria-label="Time-domain Ez field at probe point"></canvas>
+      <p class="chart-caption">Ez(t) recorded at the slice-intersection probe point. Shows the wavelet propagating past the sensor.</p>
+    </div>
+
+    <div class="analysis-card">
+      <div class="analysis-card-header">
+        <h3>Frequency Spectrum — |FFT{Ez}|</h3>
+        <button id="btn-fft" class="ctrl-btn primary small">Compute FFT →</button>
+      </div>
+      <canvas id="fft-canvas" width="500" height="160" aria-label="Frequency spectrum via FFT"></canvas>
+      <p class="chart-caption">Fourier transform of the probe signal. One simulation → broadband data across the entire frequency range.</p>
+    </div>
+
+    <div class="analysis-explainer">
+      <div class="explainer-icon">💡</div>
+      <div>
+        <h4>Why is this so powerful?</h4>
+        <p>A frequency-domain method (like MoM or FEM) must run a separate simulation at <em>every single frequency</em>. FDTD runs <strong>once</strong> with a broadband pulse and extracts data for <em>all frequencies simultaneously</em> via Fourier Transform. This makes it the industry standard for antenna bandwidth analysis and bioEM studies.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     GUIDED EXPERIMENTS
+═══════════════════════════════════════════════════════════════════════════ -->
+<section id="experiments" aria-labelledby="exp-heading">
+  <div class="section-header">
+    <div class="section-tag">Learn by Doing</div>
+    <h2 id="exp-heading">Guided Experiments</h2>
+    <p class="section-sub">Click any experiment to auto-configure the simulator. Follow the narrative to discover the physics.</p>
+  </div>
+
+  <div class="experiments-grid">
+
+    <div class="exp-card" id="exp-freespace">
+      <div class="exp-icon">🌊</div>
+      <div class="exp-num">01</div>
+      <h3>Free Space Propagation</h3>
+      <p>A Ricker-wavelet point source in vacuum. Watch the spherical electromagnetic wave expand outward at the speed of light, absorbed at the PML boundaries. Confirm the wave speed by timing the arrival at different distances.</p>
+      <ul class="exp-goals">
+        <li>Observe spherical wavefronts expanding at c</li>
+        <li>Note the PML boundaries absorbing outgoing waves</li>
+        <li>Observe the Ricker wavelet waveform at the probe</li>
+      </ul>
+      <button class="exp-launch-btn" data-experiment="free_space">▶ Launch →</button>
+    </div>
+
+    <div class="exp-card" id="exp-diffraction">
+      <div class="exp-icon">〰</div>
+      <div class="exp-num">02</div>
+      <h3>Double-Slit Diffraction</h3>
+      <p>A plane wave hits a conducting wall with two narrow slits. The wave bends around each slit (diffraction) and the two daughter waves interfere on the far side — bright fringes where they add, dark fringes where they cancel.</p>
+      <ul class="exp-goals">
+        <li>Identify the central bright fringe and side lobes</li>
+        <li>Observe Huygens wavelets emerging from each slit</li>
+        <li>Compare fringe spacing to λ·L/d formula</li>
+      </ul>
+      <button class="exp-launch-btn" data-experiment="diffraction">▶ Launch →</button>
+    </div>
+
+    <div class="exp-card" id="exp-dielectric">
+      <div class="exp-icon">🔷</div>
+      <div class="exp-num">03</div>
+      <h3>Dielectric Interface (Snell's Law)</h3>
+      <p>A plane wave hits a dielectric slab (εᵣ = 4, n = 2). Part of the wave reflects at the interface (obeying Fresnel equations) and part transmits — slowing to c/n inside the denser medium. The wavelength shortens inside.</p>
+      <ul class="exp-goals">
+        <li>Measure reflected vs transmitted amplitude</li>
+        <li>Observe the wavelength halving inside the slab</li>
+        <li>Tune εᵣ and watch reflection coefficient change</li>
+      </ul>
+      <button class="exp-launch-btn" data-experiment="dielectric">▶ Launch →</button>
+    </div>
+
+    <div class="exp-card" id="exp-cavity">
+      <div class="exp-icon">📦</div>
+      <div class="exp-num">04</div>
+      <h3>Resonant Cavity Modes</h3>
+      <p>A short electromagnetic pulse is injected inside a PEC (Perfect Electric Conductor) box. The pulse rings down into the cavity's natural resonant modes — standing waves with frequencies f = c/(2L)·√(p²+q²+r²) where p,q,r are integers.</p>
+      <ul class="exp-goals">
+        <li>Watch the initial pulse split into standing waves</li>
+        <li>Compute the expected resonance frequency</li>
+        <li>Use the FFT panel to identify mode frequencies</li>
+      </ul>
+      <button class="exp-launch-btn" data-experiment="cavity">▶ Launch →</button>
+    </div>
+
+    <div class="exp-card" id="exp-waveguide">
+      <div class="exp-icon">📡</div>
+      <div class="exp-num">05</div>
+      <h3>Rectangular Waveguide</h3>
+      <p>A metallic rectangular waveguide confines and guides electromagnetic energy. Below the cut-off frequency the wave is evanescent and decays exponentially. Above cut-off, discrete TE₁₀, TE₂₀… modes propagate.</p>
+      <ul class="exp-goals">
+        <li>Observe mode confinement between the metal walls</li>
+        <li>Identify the field null planes inside the guide</li>
+        <li>Lower the frequency and observe evanescent decay</li>
+      </ul>
+      <button class="exp-launch-btn" data-experiment="waveguide">▶ Launch →</button>
+    </div>
+
+    <div class="exp-card" id="exp-dipole">
+      <div class="exp-icon">⚡</div>
+      <div class="exp-num">06</div>
+      <h3>Radiating Dipole Antenna</h3>
+      <p>A short current element (Hertzian dipole) radiates an electromagnetic wave. The characteristic toroidal radiation pattern emerges: maximum in the equatorial plane, zero along the dipole axis — the classic antenna pattern.</p>
+      <ul class="exp-goals">
+        <li>Observe the near-field → far-field transition</li>
+        <li>Identify the null along the z-axis (dipole axis)</li>
+        <li>Measure the donut-shaped radiation pattern</li>
+      </ul>
+      <button class="exp-launch-btn" data-experiment="dipole">▶ Launch →</button>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     ALGORITHM DEEP DIVE
+═══════════════════════════════════════════════════════════════════════════ -->
+<section id="algorithm" aria-labelledby="algo-heading">
+  <div class="section-header">
+    <div class="section-tag">Under the Hood</div>
+    <h2 id="algo-heading">Algorithm Walkthrough</h2>
+    <p class="section-sub">Step through the FDTD algorithm one operation at a time. Every equation maps directly to the running JavaScript code.</p>
+  </div>
+
+  <div class="algorithm-layout">
+    <div id="algo-content" class="algo-content" aria-live="polite">
+      <!-- Populated by JS -->
+    </div>
+    <div class="algo-nav">
+      <button id="algo-prev" class="ctrl-btn" disabled>← Prev</button>
+      <button id="algo-next" class="ctrl-btn primary">Next →</button>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     ABOUT
+═══════════════════════════════════════════════════════════════════════════ -->
+<section id="about" aria-labelledby="about-heading">
+  <div class="section-header">
+    <div class="section-tag">Background</div>
+    <h2 id="about-heading">About FDTD &amp; This Simulator</h2>
+  </div>
+
+  <div class="about-grid">
+    <div class="about-card history">
+      <h3>📖 A Brief History</h3>
+      <p>In <strong>1966</strong>, Kane Yee published a landmark paper in IEEE Transactions on Antennas and Propagation introducing the staggered-grid finite-difference scheme for solving Maxwell's equations in the time domain. His key insight — offsetting E and H fields in both space and time — produced a naturally stable, second-order-accurate algorithm.</p>
+      <p>For two decades FDTD was primarily a research curiosity. In the 1980s and 1990s, as computers became powerful enough to handle meaningful grid sizes, FDTD exploded into commercial use. Today it is the dominant computational method for antenna design, photonic devices, bioelectromagnetics, and radar cross-section analysis.</p>
+      <blockquote>"The Yee cell is one of the most elegant data structures in all of numerical physics."</blockquote>
+    </div>
+
+    <div class="about-card tech">
+      <h3>🛠 This Simulator</h3>
+      <p>Built entirely in <strong>vanilla JavaScript + Three.js</strong> — no server, no native libraries. The FDTD engine runs in a <strong>Web Worker</strong> thread so the UI stays responsive even during heavy computation. Field data is transferred to the rendering thread via <strong>zero-copy ArrayBuffer transfer</strong> (postMessage with Transferable ownership).</p>
+      <ul>
+        <li><strong>Grid</strong>: 60³ – 100³ Yee cells (configurable)</li>
+        <li><strong>Fields</strong>: All six components Ex, Ey, Ez, Hx, Hy, Hz</li>
+        <li><strong>Boundaries</strong>: Graded-conductivity PML (10 cells)</li>
+        <li><strong>Visualization</strong>: Three.js DataTexture slice planes, ShaderMaterial colormap</li>
+        <li><strong>Sources</strong>: Point, plane-wave, dipole; Ricker / sinusoidal / Gaussian waveforms</li>
+      </ul>
+    </div>
+
+    <div class="about-card refs">
+      <h3>📚 Key References</h3>
+      <ul class="ref-list">
+        <li>Yee, K.S. (1966). "Numerical solution of initial boundary value problems involving Maxwell's equations in isotropic media." <em>IEEE Trans. Antennas Propag.</em>, 14(3):302–307.</li>
+        <li>Taflove, A. &amp; Hagness, S.C. (2005). <em>Computational Electrodynamics: The Finite-Difference Time-Domain Method</em>, 3rd ed. Artech House.</li>
+        <li>Berenger, J.-P. (1994). "A perfectly matched layer for the absorption of electromagnetic waves." <em>J. Comput. Phys.</em>, 114(2):185–200.</li>
+        <li>Sullivan, D.M. (2013). <em>Electromagnetic Simulation Using the FDTD Method</em>. IEEE Press.</li>
+      </ul>
+    </div>
+
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="site-footer">
+  <p>Built with ⚡ Three.js + WebWorkers + Maxwell's Equations</p>
+  <p class="footer-sub">An interactive educational tool — not a production FDTD solver.</p>
+</footer>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SCRIPTS
+═══════════════════════════════════════════════════════════════════════════ -->
+<script type="module" src="app.js"></script>
+
+</body>
+</html>
